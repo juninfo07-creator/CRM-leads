@@ -21,6 +21,20 @@ Servidor sobe em `http://localhost:3333` (configurável via `.env`). O banco
 SQLite é criado automaticamente em `data/crm.db` na primeira execução, já com
 as 9 etapas do funil seedadas (`GET /api/etapas`).
 
+Como o schema roda com `CREATE TABLE IF NOT EXISTS`, colunas adicionadas depois
+não apareceriam num banco já existente. `server/db/index.js` tem um
+`garantirColunas()` idempotente (via `PRAGMA table_info` + `ALTER TABLE ADD
+COLUMN`) que reconcilia isso no boot — é onde novas colunas devem ser
+registradas.
+
+## Interface
+
+Navegação por sidebar: **Dashboard**, **Funil**, **Clientes** e **Pedidos** são
+telas; **Orçamentos**, **Produtos**, **Tarefas** e **Configurar etapas** abrem
+como modal. Funil e Pedidos são kanbans com drag-and-drop (por etapa do funil e
+por `status_producao`, respectivamente). Clientes é uma tabela com busca,
+filtros (status, tag, estado) e import/export CSV.
+
 ## Conceito central
 
 `clientes` — o registro persistente da pessoa/empresa (PF ou PJ), sobrevive
@@ -45,7 +59,9 @@ Cada etapa tem `dias_alerta` (quando a oportunidade fica "atrasada" nela) e
 ## API
 
 **Clientes**
-- `GET /api/clientes?busca=&tag=&status=` — lista (com tags, status e resumo de compras calculados)
+- `GET /api/clientes?busca=&tag=&status=&estado=` — lista (com tags, status e resumo de compras calculados). A busca cobre nome, empresa, e-mail, cidade, documento e telefone (comparado só por dígitos, então máscara não atrapalha)
+- `GET /api/clientes/exportar.csv?busca=&tag=&status=&estado=` — exporta o resultado dos mesmos filtros
+- `POST /api/clientes/importar` — recebe `{ csv }` e faz upsert por telefone (mesmo telefone atualiza o cadastro em vez de duplicar). Responde `{ criados, atualizados, erros }`, tudo numa transação
 - `GET /api/clientes/:id` — cliente completo, incluindo todas as suas oportunidades
 - `POST /api/clientes` — cria cliente (`nome`, `telefone` obrigatórios)
 - `PUT /api/clientes/:id` — atualiza cadastro
@@ -92,7 +108,7 @@ Cada etapa tem `dias_alerta` (quando a oportunidade fica "atrasada" nela) e
 
 ## Estrutura do banco
 
-- `clientes` — PF ou PJ, com tipo_pessoa/documento/empresa/email/instagram/origem/observações
+- `clientes` — PF ou PJ, com tipo_pessoa/documento/empresa/email/instagram/origem/observações e endereço completo (cep, endereco, numero, complemento, bairro, cidade, estado)
 - `oportunidades` — etapa, produto, quantidade, valores, próxima ação, datas — ligada a `clientes`
 - `oportunidade_notas` — histórico de texto por oportunidade
 - `tags` / `cliente_tags` — tags many-to-many, no nível do cliente

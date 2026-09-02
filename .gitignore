@@ -2,3 +2,9 @@ node_modules/
 data/
 .env
 *.log
+
+# Configuração local do Claude Code
+.claude/
+
+# Repositório separado (juninfo07-creator/bsb-fitas), copiado aqui só pra consulta
+bsb-fitas/

@@ -15,7 +15,8 @@ const pedidosRouter = require('./routes/pedidos');
 const app = express();
 
 app.use(cors());
-app.use(express.json());
+// Limite maior que o padrão de 100kb por causa da importação de clientes via CSV.
+app.use(express.json({ limit: '5mb' }));
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));

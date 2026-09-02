@@ -1,5 +1,10 @@
 const TIPOS_PESSOA = ['pf', 'pj'];
 
+const ESTADOS = [
+  'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG',
+  'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
+];
+
 const ETAPAS = [
   'novo_lead',
   'primeiro_contato',
@@ -146,6 +151,7 @@ const PRODUTOS_PADRAO = [
 
 module.exports = {
   TIPOS_PESSOA,
+  ESTADOS,
   ETAPAS,
   ETAPAS_GANHAS,
   ETAPAS_PERDIDAS,

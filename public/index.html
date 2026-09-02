@@ -8,22 +8,85 @@
 </head>
 <body>
 
-<header class="topbar">
-  <div class="topbar-brand">
-    <img src="/logo.png" alt="BSB Fitas" class="topbar-logo" onerror="this.style.display='none'" />
-    <h1>CRM</h1>
+<aside class="sidebar">
+  <div class="sidebar-marca">
+    <img src="/logo.png" alt="BSB Fitas" class="sidebar-logo" onerror="this.style.display='none'" />
+    <span>BSB Fitas</span>
   </div>
-  <div class="topbar-actions">
-    <button id="btn-tarefas" class="btn btn-ghost">Tarefas pendentes</button>
-    <button id="btn-produtos" class="btn btn-ghost">Produtos</button>
-    <button id="btn-orcamentos" class="btn btn-ghost">Orçamentos</button>
-    <button id="btn-pedidos" class="btn btn-ghost">Pedidos</button>
-    <button id="btn-config" class="btn btn-ghost">Configurar etapas</button>
-    <button id="btn-novo-lead" class="btn btn-primary">+ Novo lead</button>
-  </div>
-</header>
+  <nav class="sidebar-nav">
+    <button class="nav-item" data-tela="dashboard">Dashboard</button>
+    <button class="nav-item ativo" data-tela="funil">Funil</button>
+    <button class="nav-item" data-tela="clientes">Clientes</button>
+    <button class="nav-item" data-tela="pedidos">Pedidos</button>
+    <div class="sidebar-divisor"></div>
+    <button class="nav-item" data-modal="modal-orcamentos">Orçamentos</button>
+    <button class="nav-item" data-modal="modal-produtos">Produtos</button>
+    <button class="nav-item" data-modal="modal-tarefas">Tarefas</button>
+    <button class="nav-item" data-modal="modal-config">Configurar etapas</button>
+  </nav>
+</aside>
 
-<main id="board" class="board"></main>
+<div class="conteudo">
+  <header class="topbar">
+    <h1 id="titulo-tela">Funil</h1>
+    <div class="topbar-actions">
+      <button id="btn-novo-lead" class="btn btn-primary">+ Novo lead</button>
+    </div>
+  </header>
+
+  <section id="tela-dashboard" class="tela" hidden>
+    <p class="aviso-vazio">O dashboard entra na próxima etapa: faturamento por período, produto mais vendido, vendas por estado e status de produção.</p>
+  </section>
+
+  <section id="tela-funil" class="tela">
+    <main id="board" class="board"></main>
+  </section>
+
+  <section id="tela-clientes" class="tela" hidden>
+    <div class="filtros-barra">
+      <input type="search" id="clientes-busca" placeholder="Buscar por nome, telefone, empresa, e-mail, cidade..." />
+      <select id="clientes-filtro-status">
+        <option value="">Todos os status</option>
+        <option value="lead">Lead</option>
+        <option value="cliente">Cliente</option>
+        <option value="cliente_recorrente">Cliente recorrente</option>
+      </select>
+      <select id="clientes-filtro-tag">
+        <option value="">Todas as tags</option>
+      </select>
+      <select id="clientes-filtro-estado">
+        <option value="">Todos os estados</option>
+      </select>
+      <div class="filtros-acoes">
+        <button id="btn-exportar-clientes" class="btn btn-ghost">Exportar CSV</button>
+        <button id="btn-importar-clientes" class="btn btn-ghost">Importar CSV</button>
+        <input type="file" id="input-importar-clientes" accept=".csv,text/csv" hidden />
+      </div>
+    </div>
+    <div class="tabela-wrap">
+      <table class="tabela">
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Empresa</th>
+            <th>Telefone</th>
+            <th>Cidade/UF</th>
+            <th>Status</th>
+            <th>Compras</th>
+            <th>Última interação</th>
+            <th>Tags</th>
+          </tr>
+        </thead>
+        <tbody id="clientes-tabela-corpo"></tbody>
+      </table>
+    </div>
+    <p id="clientes-contagem" class="contagem"></p>
+  </section>
+
+  <section id="tela-pedidos" class="tela" hidden>
+    <main id="board-producao" class="board"></main>
+  </section>
+</div>
 
 <template id="tpl-coluna">
   <section class="coluna">
@@ -51,6 +114,20 @@
   </article>
 </template>
 
+<template id="tpl-card-pedido">
+  <article class="card" draggable="true">
+    <div class="card-top">
+      <strong class="card-nome"></strong>
+    </div>
+    <div class="card-empresa"></div>
+    <div class="card-produto"></div>
+    <div class="card-footer">
+      <span class="card-dias"></span>
+      <span class="card-arte status-pill"></span>
+    </div>
+  </article>
+</template>
+
 <!-- Modal: detalhe da oportunidade -->
 <div id="modal-lead" class="modal-overlay" hidden>
   <div class="modal">
@@ -61,7 +138,10 @@
     <div class="modal-body">
 
       <section class="secao secao-topo">
-        <h3>Cliente <span id="lead-status-badge" class="status-badge"></span></h3>
+        <h3>
+          Cliente <span id="lead-status-badge" class="status-badge"></span>
+          <button type="button" id="btn-ver-cadastro" class="link-secundario">ver cadastro completo</button>
+        </h3>
         <form id="form-cliente" class="form-grid">
           <label>Nome
             <input type="text" id="cliente-nome" required />
@@ -167,6 +247,102 @@
         <h3>Histórico de oportunidades deste cliente</h3>
         <div id="lead-historico-lista" class="notas-lista"></div>
         <button type="button" id="btn-nova-oportunidade" class="btn btn-ghost">+ Nova oportunidade pra este cliente (recompra)</button>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<!-- Modal: cadastro completo do cliente -->
+<div id="modal-cliente" class="modal-overlay" hidden>
+  <div class="modal">
+    <header class="modal-header">
+      <h2><span id="cad-titulo">Cliente</span> <span id="cad-status-badge" class="status-badge"></span></h2>
+      <button class="modal-fechar" data-fechar="modal-cliente">&times;</button>
+    </header>
+    <div class="modal-body">
+
+      <section class="secao secao-topo">
+        <h3>Dados</h3>
+        <form id="form-cadastro-cliente" class="form-grid">
+          <label>Nome
+            <input type="text" id="cad-nome" required />
+          </label>
+          <label>Telefone
+            <input type="text" id="cad-telefone" placeholder="61999998888" required />
+          </label>
+          <label>Tipo de pessoa
+            <select id="cad-tipo-pessoa">
+              <option value="pf">Pessoa física</option>
+              <option value="pj">Pessoa jurídica</option>
+            </select>
+          </label>
+          <label>CPF / CNPJ
+            <input type="text" id="cad-documento" />
+          </label>
+          <label>Empresa
+            <input type="text" id="cad-empresa" />
+          </label>
+          <label>E-mail
+            <input type="email" id="cad-email" />
+          </label>
+          <label>Instagram
+            <input type="text" id="cad-instagram" placeholder="@usuario" />
+          </label>
+          <label>Origem
+            <input type="text" id="cad-origem" placeholder="meta_ads, indicação..." />
+          </label>
+          <label>Observações
+            <input type="text" id="cad-observacoes" />
+          </label>
+        </form>
+        <div class="resumo-compras" id="cad-resumo-compras"></div>
+      </section>
+
+      <section class="secao">
+        <h3>Endereço</h3>
+        <form id="form-endereco-cliente" class="form-grid">
+          <label>CEP
+            <input type="text" id="cad-cep" placeholder="70000-000" />
+          </label>
+          <label>Endereço
+            <input type="text" id="cad-endereco" placeholder="Rua, avenida, quadra..." />
+          </label>
+          <label>Número
+            <input type="text" id="cad-numero" />
+          </label>
+          <label>Complemento
+            <input type="text" id="cad-complemento" />
+          </label>
+          <label>Bairro
+            <input type="text" id="cad-bairro" />
+          </label>
+          <label>Cidade
+            <input type="text" id="cad-cidade" />
+          </label>
+          <label>Estado
+            <select id="cad-estado"></select>
+          </label>
+        </form>
+        <div class="form-actions">
+          <button type="button" id="btn-salvar-cliente" class="btn btn-primary">Salvar cadastro</button>
+          <button type="button" id="btn-excluir-cliente" class="btn btn-perigo">Excluir cliente</button>
+        </div>
+      </section>
+
+      <section class="secao">
+        <h3>Tags</h3>
+        <div id="cad-tags-lista" class="tags-lista"></div>
+        <form id="form-cad-tag" class="inline-form">
+          <input type="text" id="input-cad-tag" placeholder="nova tag" />
+          <button type="submit" class="btn btn-ghost">Adicionar</button>
+        </form>
+      </section>
+
+      <section class="secao">
+        <h3>Oportunidades deste cliente</h3>
+        <div id="cad-oportunidades-lista" class="notas-lista"></div>
+        <button type="button" id="btn-nova-oportunidade-cliente" class="btn btn-ghost">+ Nova oportunidade</button>
       </section>
 
     </div>
@@ -316,19 +492,6 @@
     </header>
     <div class="modal-body">
       <div id="orcamentos-lista" class="config-lista"></div>
-    </div>
-  </div>
-</div>
-
-<!-- Modal: lista de pedidos -->
-<div id="modal-pedidos" class="modal-overlay" hidden>
-  <div class="modal">
-    <header class="modal-header">
-      <h2>Pedidos</h2>
-      <button class="modal-fechar" data-fechar="modal-pedidos">&times;</button>
-    </header>
-    <div class="modal-body">
-      <div id="pedidos-lista" class="config-lista"></div>
     </div>
   </div>
 </div>

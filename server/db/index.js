@@ -16,6 +16,31 @@ db.exec('PRAGMA foreign_keys = ON');
 const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
 db.exec(schema);
 
+// O schema roda com CREATE TABLE IF NOT EXISTS, então em banco já existente ele
+// vira no-op e colunas novas nunca apareceriam. Este bloco reconcilia as colunas
+// que foram adicionadas ao schema depois que o banco já estava criado.
+function garantirColunas(tabela, colunas) {
+  const existentes = db
+    .prepare(`PRAGMA table_info(${tabela})`)
+    .all()
+    .map((coluna) => coluna.name);
+  colunas.forEach(({ nome, tipo }) => {
+    if (!existentes.includes(nome)) {
+      db.exec(`ALTER TABLE ${tabela} ADD COLUMN ${nome} ${tipo}`);
+    }
+  });
+}
+
+garantirColunas('clientes', [
+  { nome: 'cep', tipo: 'TEXT' },
+  { nome: 'endereco', tipo: 'TEXT' },
+  { nome: 'numero', tipo: 'TEXT' },
+  { nome: 'complemento', tipo: 'TEXT' },
+  { nome: 'bairro', tipo: 'TEXT' },
+  { nome: 'cidade', tipo: 'TEXT' },
+  { nome: 'estado', tipo: 'TEXT' },
+]);
+
 const totalEtapas = db.prepare('SELECT COUNT(*) AS total FROM etapas_config').get().total;
 if (totalEtapas === 0) {
   const insert = db.prepare(`
