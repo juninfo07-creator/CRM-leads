@@ -8,11 +8,46 @@ let oportunidades = [];
 let oportunidadeAtualId = null;
 let clienteAtualId = null;
 let arrastandoId = null;
+let produtos = [];
+let itensOrcamentoBuilder = [];
+let orcamentoContexto = { clienteId: null, oportunidadeId: null };
+let pedidoAtualId = null;
 
 const STATUS_LABEL = {
   lead: 'Lead',
   cliente: 'Cliente',
   cliente_recorrente: 'Cliente recorrente',
+};
+
+const STATUS_ORCAMENTO_LABEL = {
+  rascunho: 'Rascunho',
+  enviado: 'Enviado',
+  visualizado: 'Visualizado',
+  em_negociacao: 'Em negociação',
+  aprovado: 'Aprovado',
+  recusado: 'Recusado',
+  expirado: 'Expirado',
+};
+
+const STATUS_COMERCIAL_LABEL = { novo: 'Novo', confirmado: 'Confirmado', cancelado: 'Cancelado' };
+
+const STATUS_PRODUCAO_LABEL = {
+  aguardando_arte: 'Aguardando arte',
+  arte_aprovada: 'Arte aprovada',
+  em_producao: 'Em produção',
+  producao_concluida: 'Produção concluída',
+  aguardando_expedicao: 'Aguardando expedição',
+  enviado: 'Enviado',
+  entregue: 'Entregue',
+};
+
+const STATUS_FISCAL_LABEL = { pendente: 'Pendente', nf_emitida: 'NF emitida', cancelada: 'Cancelada' };
+
+const STATUS_LOGISTICO_LABEL = {
+  aguardando_envio: 'Aguardando envio',
+  enviado: 'Enviado',
+  em_transito: 'Em trânsito',
+  entregue: 'Entregue',
 };
 
 async function api(caminho, opcoes = {}) {
@@ -214,6 +249,7 @@ async function abrirDetalheOportunidade(oportunidadeId) {
     renderNotasDaOportunidade(op.notas);
     renderHistoricoCliente(cliente.oportunidades, op.id);
     await carregarTarefasDaOportunidade(op.id);
+    await carregarOrcamentosDaOportunidade(op.id);
 
     abrirModal('modal-lead');
   } catch (err) {
@@ -549,5 +585,393 @@ async function carregarTarefasPendentes() {
   const tarefas = await api('/api/tarefas?pendentes=true');
   renderTarefas(tarefas, 'tarefas-pendentes-lista', { comOportunidade: true });
 }
+
+// ---------- Produtos ----------
+
+async function carregarProdutos() {
+  produtos = await api('/api/produtos');
+}
+
+document.getElementById('btn-produtos').addEventListener('click', async () => {
+  await carregarProdutos();
+  renderProdutosLista();
+  abrirModal('modal-produtos');
+});
+
+function renderProdutosLista() {
+  const container = document.getElementById('produtos-lista');
+  container.innerHTML = '';
+  produtos.forEach((produto) => {
+    const item = document.createElement('div');
+    item.className = 'config-item';
+    item.innerHTML = `
+      <h4>${escapeHtml(produto.nome)} ${!produto.ativo ? '<span class="status-pill alerta">inativo</span>' : ''}</h4>
+      <p style="font-size:12.5px;color:var(--cinza-texto);margin:0 0 8px">
+        ${escapeHtml(produto.largura || '')} · ${escapeHtml(produto.unidade || '')} · R$ ${produto.preco_padrao.toFixed(2)}
+      </p>
+      <button type="button" class="btn btn-ghost">${produto.ativo ? 'Desativar' : 'Reativar'}</button>
+    `;
+    item.querySelector('button').addEventListener('click', async () => {
+      try {
+        await api(`/api/produtos/${produto.id}/status`, {
+          method: 'PATCH',
+          body: JSON.stringify({ ativo: !produto.ativo }),
+        });
+        await carregarProdutos();
+        renderProdutosLista();
+      } catch (err) {
+        mostrarToast(err.message, true);
+      }
+    });
+    container.appendChild(item);
+  });
+}
+
+document.getElementById('form-novo-produto').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  try {
+    await api('/api/produtos', {
+      method: 'POST',
+      body: JSON.stringify({
+        nome: document.getElementById('produto-nome').value.trim(),
+        largura: document.getElementById('produto-largura').value.trim(),
+        unidade: document.getElementById('produto-unidade').value.trim(),
+        preco_padrao: Number(document.getElementById('produto-preco').value),
+      }),
+    });
+    document.getElementById('form-novo-produto').reset();
+    await carregarProdutos();
+    renderProdutosLista();
+    mostrarToast('Produto adicionado');
+  } catch (err) {
+    mostrarToast(err.message, true);
+  }
+});
+
+// ---------- Criar orçamento ----------
+
+document.getElementById('btn-criar-orcamento').addEventListener('click', async () => {
+  if (produtos.length === 0) await carregarProdutos();
+  orcamentoContexto = { clienteId: clienteAtualId, oportunidadeId: oportunidadeAtualId };
+  itensOrcamentoBuilder = [{ produto_id: null, descricao: '', quantidade: 1, preco_unitario: 0 }];
+  document.getElementById('form-novo-orcamento').reset();
+  renderItensOrcamentoBuilder();
+  fecharModal('modal-lead');
+  abrirModal('modal-novo-orcamento');
+});
+
+function renderItensOrcamentoBuilder() {
+  const container = document.getElementById('orcamento-itens-lista');
+  container.innerHTML = '';
+  itensOrcamentoBuilder.forEach((item, index) => {
+    const row = document.createElement('div');
+    row.className = 'item-orcamento';
+    const options = ['<option value="">Item avulso</option>']
+      .concat(produtos.map((p) => `<option value="${p.id}" ${item.produto_id === p.id ? 'selected' : ''}>${escapeHtml(p.nome)}</option>`));
+    row.innerHTML = `
+      <select class="item-produto">${options.join('')}</select>
+      <input type="text" class="item-descricao" placeholder="descrição" value="${escapeHtml(item.descricao)}" />
+      <input type="number" step="0.01" min="0.01" class="item-quantidade" value="${item.quantidade}" placeholder="qtd" />
+      <input type="number" step="0.01" min="0" class="item-preco" value="${item.preco_unitario}" placeholder="preço unit." />
+      <button type="button" title="Remover">×</button>
+    `;
+
+    const selectProduto = row.querySelector('.item-produto');
+    const inputDescricao = row.querySelector('.item-descricao');
+    const inputQuantidade = row.querySelector('.item-quantidade');
+    const inputPreco = row.querySelector('.item-preco');
+
+    selectProduto.addEventListener('change', () => {
+      const produtoId = selectProduto.value ? Number(selectProduto.value) : null;
+      itensOrcamentoBuilder[index].produto_id = produtoId;
+      if (produtoId) {
+        const produto = produtos.find((p) => p.id === produtoId);
+        itensOrcamentoBuilder[index].descricao = produto.nome;
+        itensOrcamentoBuilder[index].preco_unitario = produto.preco_padrao;
+        inputDescricao.value = produto.nome;
+        inputPreco.value = produto.preco_padrao;
+      }
+      atualizarTotalOrcamentoPreview();
+    });
+    inputDescricao.addEventListener('input', () => {
+      itensOrcamentoBuilder[index].descricao = inputDescricao.value;
+    });
+    inputQuantidade.addEventListener('input', () => {
+      itensOrcamentoBuilder[index].quantidade = Number(inputQuantidade.value) || 0;
+      atualizarTotalOrcamentoPreview();
+    });
+    inputPreco.addEventListener('input', () => {
+      itensOrcamentoBuilder[index].preco_unitario = Number(inputPreco.value) || 0;
+      atualizarTotalOrcamentoPreview();
+    });
+    row.querySelector('button').addEventListener('click', () => {
+      itensOrcamentoBuilder.splice(index, 1);
+      if (itensOrcamentoBuilder.length === 0) itensOrcamentoBuilder.push({ produto_id: null, descricao: '', quantidade: 1, preco_unitario: 0 });
+      renderItensOrcamentoBuilder();
+    });
+
+    container.appendChild(row);
+  });
+  atualizarTotalOrcamentoPreview();
+}
+
+document.getElementById('btn-add-item-orcamento').addEventListener('click', () => {
+  itensOrcamentoBuilder.push({ produto_id: null, descricao: '', quantidade: 1, preco_unitario: 0 });
+  renderItensOrcamentoBuilder();
+});
+
+function atualizarTotalOrcamentoPreview() {
+  const subtotal = itensOrcamentoBuilder.reduce((soma, i) => soma + i.quantidade * i.preco_unitario, 0);
+  const desconto = Number(document.getElementById('orc-desconto').value) || 0;
+  const frete = Number(document.getElementById('orc-frete').value) || 0;
+  const total = Math.max(0, subtotal - desconto) + frete;
+  document.getElementById('orc-total-preview').textContent = `Subtotal: R$ ${subtotal.toFixed(2)} · Total: R$ ${total.toFixed(2)}`;
+}
+
+document.getElementById('orc-desconto').addEventListener('input', atualizarTotalOrcamentoPreview);
+document.getElementById('orc-frete').addEventListener('input', atualizarTotalOrcamentoPreview);
+
+document.getElementById('form-novo-orcamento').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const itensValidos = itensOrcamentoBuilder.filter((i) => i.quantidade > 0 && (i.produto_id || i.descricao));
+  if (itensValidos.length === 0) {
+    mostrarToast('Adicione ao menos um item válido', true);
+    return;
+  }
+  try {
+    await api('/api/orcamentos', {
+      method: 'POST',
+      body: JSON.stringify({
+        cliente_id: orcamentoContexto.clienteId,
+        oportunidade_id: orcamentoContexto.oportunidadeId,
+        itens: itensValidos.map((i) => ({
+          produto_id: i.produto_id,
+          descricao: i.descricao || undefined,
+          quantidade: i.quantidade,
+          preco_unitario: i.preco_unitario,
+        })),
+        valor_desconto: Number(document.getElementById('orc-desconto').value) || 0,
+        valor_frete: Number(document.getElementById('orc-frete').value) || 0,
+        prazo: document.getElementById('orc-prazo').value.trim(),
+        condicoes_comerciais: document.getElementById('orc-condicoes').value.trim(),
+        observacoes: document.getElementById('orc-observacoes').value.trim(),
+      }),
+    });
+    fecharModal('modal-novo-orcamento');
+    await recarregarOportunidades();
+    mostrarToast('Orçamento criado');
+  } catch (err) {
+    mostrarToast(err.message, true);
+  }
+});
+
+// ---------- Orçamentos (seção dentro da oportunidade + modal global) ----------
+
+async function carregarOrcamentosDaOportunidade(oportunidadeId) {
+  const orcamentos = await api(`/api/orcamentos?oportunidade_id=${oportunidadeId}`);
+  renderListaOrcamentos(orcamentos, 'lead-orcamentos-lista', { comCliente: false, aoAtualizar: () => carregarOrcamentosDaOportunidade(oportunidadeId) });
+}
+
+async function recarregarListaOrcamentosGlobal() {
+  const orcamentos = await api('/api/orcamentos');
+  renderListaOrcamentos(orcamentos, 'orcamentos-lista', { comCliente: true, aoAtualizar: recarregarListaOrcamentosGlobal });
+}
+
+document.getElementById('btn-orcamentos').addEventListener('click', async () => {
+  await recarregarListaOrcamentosGlobal();
+  abrirModal('modal-orcamentos');
+});
+
+function renderListaOrcamentos(orcamentosLista, containerId, { comCliente, aoAtualizar }) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+  if (orcamentosLista.length === 0) {
+    container.innerHTML = '<p style="font-size:12.5px;color:var(--cinza-texto)">Nenhum orçamento ainda.</p>';
+    return;
+  }
+  orcamentosLista.forEach((orc) => {
+    const item = document.createElement('div');
+    item.className = 'config-item';
+    const podeConverter = orc.status !== 'recusado' && orc.status !== 'expirado';
+    item.innerHTML = `
+      <h4>${orc.numero}${comCliente ? ' — ' + escapeHtml(orc.cliente.nome) : ''}</h4>
+      <p style="font-size:12.5px;color:var(--cinza-texto);margin:0 0 8px">
+        R$ ${orc.valor_total.toFixed(2)} · ${orc.itens.length} item(ns) ${orc.prazo ? '· prazo: ' + escapeHtml(orc.prazo) : ''}
+      </p>
+      <label>Status
+        <select class="orc-status-select"></select>
+      </label>
+      <div class="form-actions" style="margin-top:8px">
+        ${podeConverter ? '<button type="button" class="btn btn-primary btn-converter">Converter em pedido</button>' : ''}
+      </div>
+    `;
+    const select = item.querySelector('.orc-status-select');
+    Object.keys(STATUS_ORCAMENTO_LABEL).forEach((s) => {
+      const opt = document.createElement('option');
+      opt.value = s;
+      opt.textContent = STATUS_ORCAMENTO_LABEL[s];
+      opt.selected = s === orc.status;
+      select.appendChild(opt);
+    });
+    select.addEventListener('change', async () => {
+      try {
+        await api(`/api/orcamentos/${orc.id}/status`, { method: 'PATCH', body: JSON.stringify({ status: select.value }) });
+        mostrarToast('Status do orçamento atualizado');
+        if (aoAtualizar) await aoAtualizar();
+      } catch (err) {
+        mostrarToast(err.message, true);
+      }
+    });
+    const btnConverter = item.querySelector('.btn-converter');
+    if (btnConverter) {
+      btnConverter.addEventListener('click', async () => {
+        try {
+          const pedido = await api(`/api/orcamentos/${orc.id}/converter-em-pedido`, { method: 'POST' });
+          mostrarToast(`Pedido ${pedido.numero} criado`);
+          if (aoAtualizar) await aoAtualizar();
+          await recarregarOportunidades();
+        } catch (err) {
+          mostrarToast(err.message, true);
+        }
+      });
+    }
+    container.appendChild(item);
+  });
+}
+
+// ---------- Pedidos ----------
+
+document.getElementById('btn-pedidos').addEventListener('click', async () => {
+  const pedidos = await api('/api/pedidos');
+  renderListaPedidos(pedidos);
+  abrirModal('modal-pedidos');
+});
+
+function renderListaPedidos(pedidosLista) {
+  const container = document.getElementById('pedidos-lista');
+  container.innerHTML = '';
+  if (pedidosLista.length === 0) {
+    container.innerHTML = '<p style="font-size:12.5px;color:var(--cinza-texto)">Nenhum pedido ainda.</p>';
+    return;
+  }
+  pedidosLista.forEach((pedido) => {
+    const item = document.createElement('div');
+    item.className = 'config-item lista-clicavel';
+    item.innerHTML = `
+      <h4>${pedido.numero} — ${escapeHtml(pedido.cliente.nome)}</h4>
+      <p style="font-size:12.5px;color:var(--cinza-texto);margin:0">
+        R$ ${pedido.valor_total.toFixed(2)}
+      </p>
+      <div style="margin-top:6px">
+        <span class="status-pill">${STATUS_COMERCIAL_LABEL[pedido.status_comercial]}</span>
+        <span class="status-pill">${STATUS_PRODUCAO_LABEL[pedido.status_producao]}</span>
+        <span class="status-pill">${STATUS_FISCAL_LABEL[pedido.status_fiscal]}</span>
+        <span class="status-pill">${STATUS_LOGISTICO_LABEL[pedido.status_logistico]}</span>
+      </div>
+    `;
+    item.addEventListener('click', () => abrirDetalhePedido(pedido.id));
+    container.appendChild(item);
+  });
+}
+
+function preencherSelectStatus(select, labels, valorAtual) {
+  select.innerHTML = '';
+  Object.keys(labels).forEach((v) => {
+    const opt = document.createElement('option');
+    opt.value = v;
+    opt.textContent = labels[v];
+    opt.selected = v === valorAtual;
+    select.appendChild(opt);
+  });
+}
+
+async function abrirDetalhePedido(pedidoId) {
+  const pedido = await api(`/api/pedidos/${pedidoId}`);
+  pedidoAtualId = pedido.id;
+
+  document.getElementById('pedido-titulo').textContent = `${pedido.numero} — ${pedido.cliente.nome}`;
+  document.getElementById('pedido-itens-resumo').innerHTML = pedido.itens
+    .map((i) => `${escapeHtml(i.descricao)} — ${i.quantidade} × R$ ${i.preco_unitario.toFixed(2)} = R$ ${i.subtotal.toFixed(2)}`)
+    .join('<br>') + `<br><strong>Total: R$ ${pedido.valor_total.toFixed(2)}</strong>`;
+
+  preencherSelectStatus(document.getElementById('pedido-status-comercial'), STATUS_COMERCIAL_LABEL, pedido.status_comercial);
+  preencherSelectStatus(document.getElementById('pedido-status-producao'), STATUS_PRODUCAO_LABEL, pedido.status_producao);
+  preencherSelectStatus(document.getElementById('pedido-status-fiscal'), STATUS_FISCAL_LABEL, pedido.status_fiscal);
+  preencherSelectStatus(document.getElementById('pedido-status-logistico'), STATUS_LOGISTICO_LABEL, pedido.status_logistico);
+
+  document.getElementById('pedido-arte-aprovada').checked = pedido.arte_aprovada;
+  document.getElementById('pedido-logo-arquivo').value = pedido.logo_arquivo || '';
+  document.getElementById('pedido-cor-fita').value = pedido.cor_fita || '';
+  document.getElementById('pedido-tipo-fita').value = pedido.tipo_fita || '';
+  document.getElementById('pedido-largura').value = pedido.largura || '';
+  document.getElementById('pedido-tipo-personalizacao').value = pedido.tipo_personalizacao || '';
+  document.getElementById('pedido-observacoes-producao').value = pedido.observacoes_producao || '';
+  document.getElementById('pedido-prazo-entrega').value = pedido.prazo_entrega || '';
+  document.getElementById('pedido-nf-numero').value = pedido.nf_numero || '';
+  document.getElementById('pedido-nf-url').value = pedido.nf_url || '';
+  document.getElementById('pedido-etiqueta-codigo').value = pedido.etiqueta_codigo || '';
+  document.getElementById('pedido-codigo-rastreio').value = pedido.codigo_rastreio || '';
+  document.getElementById('pedido-link-rastreio').value = pedido.link_rastreio || '';
+
+  renderEventosPedido(pedido.eventos);
+
+  fecharModal('modal-pedidos');
+  abrirModal('modal-pedido-detalhe');
+}
+
+function renderEventosPedido(eventos) {
+  const container = document.getElementById('pedido-eventos-lista');
+  container.innerHTML = '';
+  eventos.forEach((evento) => {
+    const item = document.createElement('div');
+    item.className = 'nota-item';
+    const data = new Date(evento.created_at).toLocaleString('pt-BR');
+    item.innerHTML = `<span>${escapeHtml(evento.descricao)}</span><span class="nota-data">${data}</span>`;
+    container.appendChild(item);
+  });
+}
+
+async function mudarStatusPedido(campo, valor) {
+  try {
+    await api(`/api/pedidos/${pedidoAtualId}/status-${campo}`, { method: 'PATCH', body: JSON.stringify({ valor }) });
+    const pedido = await api(`/api/pedidos/${pedidoAtualId}`);
+    renderEventosPedido(pedido.eventos);
+    mostrarToast('Status atualizado');
+  } catch (err) {
+    mostrarToast(err.message, true);
+  }
+}
+
+document.getElementById('pedido-status-comercial').addEventListener('change', (e) => mudarStatusPedido('comercial', e.target.value));
+document.getElementById('pedido-status-producao').addEventListener('change', (e) => mudarStatusPedido('producao', e.target.value));
+document.getElementById('pedido-status-fiscal').addEventListener('change', (e) => mudarStatusPedido('fiscal', e.target.value));
+document.getElementById('pedido-status-logistico').addEventListener('change', (e) => mudarStatusPedido('logistico', e.target.value));
+
+document.getElementById('btn-salvar-pedido').addEventListener('click', async () => {
+  try {
+    const pedido = await api(`/api/pedidos/${pedidoAtualId}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        arte_aprovada: document.getElementById('pedido-arte-aprovada').checked,
+        logo_arquivo: document.getElementById('pedido-logo-arquivo').value.trim(),
+        cor_fita: document.getElementById('pedido-cor-fita').value.trim(),
+        tipo_fita: document.getElementById('pedido-tipo-fita').value.trim(),
+        largura: document.getElementById('pedido-largura').value.trim(),
+        tipo_personalizacao: document.getElementById('pedido-tipo-personalizacao').value.trim(),
+        observacoes_producao: document.getElementById('pedido-observacoes-producao').value.trim(),
+        prazo_entrega: document.getElementById('pedido-prazo-entrega').value.trim(),
+        nf_numero: document.getElementById('pedido-nf-numero').value.trim(),
+        nf_url: document.getElementById('pedido-nf-url').value.trim(),
+        etiqueta_codigo: document.getElementById('pedido-etiqueta-codigo').value.trim(),
+        codigo_rastreio: document.getElementById('pedido-codigo-rastreio').value.trim(),
+        link_rastreio: document.getElementById('pedido-link-rastreio').value.trim(),
+      }),
+    });
+    renderEventosPedido(pedido.eventos);
+    mostrarToast('Dados do pedido salvos');
+  } catch (err) {
+    mostrarToast(err.message, true);
+  }
+});
 
 carregarTudo().catch((err) => mostrarToast(err.message, true));

@@ -8,6 +8,9 @@ const oportunidadesRouter = require('./routes/oportunidades');
 const tarefasRouter = require('./routes/tarefas');
 const etapasRouter = require('./routes/etapas');
 const tagsRouter = require('./routes/tags');
+const produtosRouter = require('./routes/produtos');
+const orcamentosRouter = require('./routes/orcamentos');
+const pedidosRouter = require('./routes/pedidos');
 
 const app = express();
 
@@ -22,6 +25,9 @@ app.use('/api/oportunidades', oportunidadesRouter);
 app.use('/api/tarefas', tarefasRouter);
 app.use('/api/etapas', etapasRouter);
 app.use('/api/tags', tagsRouter);
+app.use('/api/produtos', produtosRouter);
+app.use('/api/orcamentos', orcamentosRouter);
+app.use('/api/pedidos', pedidosRouter);
 
 app.use((req, res) => {
   res.status(404).json({ erro: 'Rota não encontrada' });

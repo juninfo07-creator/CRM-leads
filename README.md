@@ -6,8 +6,8 @@ Kanban em HTML/CSS/JS puro, servido pelo próprio Express. Sistema de usuário
 único (sem login).
 
 Este é o produto sendo construído por fases (ver seção "Fases" abaixo).
-Fases 1 e 2 do plano completo — CRM de clientes e funil de oportunidades —
-estão prontas.
+Fases 1, 2 e 3 do plano completo — CRM de clientes, funil de oportunidades,
+produtos, orçamentos e pedidos — estão prontas.
 
 ## Rodando
 
@@ -71,6 +71,25 @@ Cada etapa tem `dias_alerta` (quando a oportunidade fica "atrasada" nela) e
 - `GET /api/etapas` / `PUT /api/etapas/:etapa`
 - `GET /api/tags` / `POST /api/tags`
 
+**Produtos**
+- `GET /api/produtos?ativo=true` / `GET /api/produtos/:id`
+- `POST /api/produtos` / `PUT /api/produtos/:id`
+- `PATCH /api/produtos/:id/status` (`{ ativo }`) — desativar em vez de excluir, preserva histórico
+
+**Orçamentos**
+- `GET /api/orcamentos?cliente_id=&oportunidade_id=&status=` — cada item traz um resumo do cliente
+- `GET /api/orcamentos/:id` / `POST /api/orcamentos` (`cliente_id`, `itens[]` — cada item por `produto_id` ou `descricao` avulsa)
+- `PUT /api/orcamentos/:id` — atualiza itens/desconto/frete/condições (substitui os itens)
+- `PATCH /api/orcamentos/:id/status`
+- `POST /api/orcamentos/:id/converter-em-pedido` — cria o pedido, copia os itens, marca a oportunidade ligada como `venda_ganha` e atualiza o cliente. Tudo numa transação (`BEGIN`/`COMMIT`/`ROLLBACK`) pra nunca deixar orçamento "aprovado" sem pedido criado.
+
+**Pedidos**
+- `GET /api/pedidos?cliente_id=&status_comercial=&status_producao=&status_logistico=`
+- `GET /api/pedidos/:id` — itens + histórico de eventos
+- `PUT /api/pedidos/:id` — dados de produção (arte aprovada, cor, tipo, largura, personalização) e campos fiscais/logísticos (preenchimento manual até a Fase 5/6)
+- `PATCH /api/pedidos/:id/status-comercial` / `status-producao` / `status-fiscal` / `status-logistico` — cada mudança grava um evento no histórico
+- Pedido só nasce via conversão de orçamento — não tem `POST /api/pedidos` direto, pra não duplicar cadastro
+
 ## Estrutura do banco
 
 - `clientes` — PF ou PJ, com tipo_pessoa/documento/empresa/email/instagram/origem/observações
@@ -79,18 +98,22 @@ Cada etapa tem `dias_alerta` (quando a oportunidade fica "atrasada" nela) e
 - `tags` / `cliente_tags` — tags many-to-many, no nível do cliente
 - `etapas_config` — dias de alerta e template de WhatsApp por etapa
 - `tarefas` — follow-ups agendados, ligados a uma oportunidade
+- `produtos` — catálogo (seedado com as larguras/preços reais da BSB Fitas)
+- `orcamentos` / `orcamento_itens` — numeração sequencial (`ORC-0001`), status, itens
+- `pedidos` / `pedido_itens` / `pedido_eventos` — numeração sequencial (`PED-0001`), 4 dimensões de status independentes (comercial/produção/fiscal/logístico), histórico de eventos
 
-Colunas reservadas em `oportunidades` para integrações futuras:
-`olist_pedido_id`, `situacao_pedido`, `codigo_rastreio`, `status_entrega`.
+Colunas reservadas em `pedidos` para integrações futuras: `olist_pedido_id`
+(Fase 5), `nf_numero`/`nf_url` (Fase 5), `etiqueta_codigo`/`codigo_rastreio`/
+`link_rastreio` (Fase 6).
 
 ## Fases do plano completo
 
 1. **Fundação** — banco + CRM básico ✅
 2. **CRM** — clientes, funil, oportunidades, histórico, tags, tarefas/follow-up ✅
-3. Comercial — produtos, orçamentos, conversão em pedido, pedidos
-4. Operação — produção, aprovação de arte, expedição
-5. Olist — integração, NF, sincronização de pedidos
+3. **Comercial** — produtos, orçamentos, conversão em pedido, pedidos ✅
+4. Operação — produção, aprovação de arte, expedição (parcialmente coberto pelos campos de produção do pedido — falta o fluxo dedicado)
+5. Olist — integração, NF, sincronização de pedidos. **Escopo combinado**: só entra depois de "venda ganha" — o funil comercial pré-venda nunca é sincronizado com a Olist. Sync de cliente é bidirecional (precisa de `olist_cliente_id` pra evitar loop via webhook)
 6. Melhor Envio — cotação, etiquetas, rastreio
-7. Gestão — dashboard, relatórios, recompra automática
+7. Gestão — dashboard, relatórios, indicadores, recompra automática
 
 Sem autenticação/multiusuário por enquanto — sistema de usuário único.

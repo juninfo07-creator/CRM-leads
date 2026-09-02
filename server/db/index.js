@@ -1,7 +1,7 @@
 const path = require('path');
 const fs = require('fs');
 const { DatabaseSync } = require('node:sqlite');
-const { ETAPAS_PADRAO } = require('../constants');
+const { ETAPAS_PADRAO, PRODUTOS_PADRAO } = require('../constants');
 
 const DB_PATH = process.env.DB_PATH
   ? path.resolve(process.cwd(), process.env.DB_PATH)
@@ -25,6 +25,23 @@ if (totalEtapas === 0) {
   db.exec('BEGIN');
   try {
     for (const etapa of ETAPAS_PADRAO) insert.run(etapa);
+    db.exec('COMMIT');
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  }
+}
+
+const totalProdutos = db.prepare('SELECT COUNT(*) AS total FROM produtos').get().total;
+if (totalProdutos === 0) {
+  const timestamp = new Date().toISOString();
+  const insertProduto = db.prepare(`
+    INSERT INTO produtos (nome, largura, unidade, preco_padrao, created_at, updated_at)
+    VALUES (@nome, @largura, @unidade, @preco_padrao, @timestamp, @timestamp)
+  `);
+  db.exec('BEGIN');
+  try {
+    for (const produto of PRODUTOS_PADRAO) insertProduto.run({ ...produto, timestamp });
     db.exec('COMMIT');
   } catch (err) {
     db.exec('ROLLBACK');

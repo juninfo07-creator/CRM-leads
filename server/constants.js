@@ -100,6 +100,50 @@ const ETAPAS_PADRAO = [
   },
 ];
 
+const STATUS_ORCAMENTO = ['rascunho', 'enviado', 'visualizado', 'em_negociacao', 'aprovado', 'recusado', 'expirado'];
+
+const STATUS_ORCAMENTO_LABEL = {
+  rascunho: 'Rascunho',
+  enviado: 'Enviado',
+  visualizado: 'Visualizado',
+  em_negociacao: 'Em negociação',
+  aprovado: 'Aprovado',
+  recusado: 'Recusado',
+  expirado: 'Expirado',
+};
+
+const STATUS_COMERCIAL_PEDIDO = ['novo', 'confirmado', 'cancelado'];
+
+const STATUS_PRODUCAO = [
+  'aguardando_arte',
+  'arte_aprovada',
+  'em_producao',
+  'producao_concluida',
+  'aguardando_expedicao',
+  'enviado',
+  'entregue',
+];
+
+const STATUS_PRODUCAO_LABEL = {
+  aguardando_arte: 'Aguardando arte',
+  arte_aprovada: 'Arte aprovada',
+  em_producao: 'Em produção',
+  producao_concluida: 'Produção concluída',
+  aguardando_expedicao: 'Aguardando expedição',
+  enviado: 'Enviado',
+  entregue: 'Entregue',
+};
+
+const STATUS_FISCAL = ['pendente', 'nf_emitida', 'cancelada'];
+const STATUS_LOGISTICO = ['aguardando_envio', 'enviado', 'em_transito', 'entregue'];
+
+const PRODUTOS_PADRAO = [
+  { nome: 'Fita de cetim 10mm', largura: '10mm', unidade: 'rolo (50m)', preco_padrao: 135 },
+  { nome: 'Fita de cetim 22mm', largura: '22mm', unidade: 'rolo (50m)', preco_padrao: 150 },
+  { nome: 'Fita de cetim 30mm', largura: '30mm', unidade: 'rolo (50m)', preco_padrao: 160 },
+  { nome: 'Fita de cetim 38mm', largura: '38mm', unidade: 'rolo (50m)', preco_padrao: 175 },
+];
+
 module.exports = {
   TIPOS_PESSOA,
   ETAPAS,
@@ -107,4 +151,12 @@ module.exports = {
   ETAPAS_PERDIDAS,
   ETAPAS_LABEL,
   ETAPAS_PADRAO,
+  STATUS_ORCAMENTO,
+  STATUS_ORCAMENTO_LABEL,
+  STATUS_COMERCIAL_PEDIDO,
+  STATUS_PRODUCAO,
+  STATUS_PRODUCAO_LABEL,
+  STATUS_FISCAL,
+  STATUS_LOGISTICO,
+  PRODUTOS_PADRAO,
 };
