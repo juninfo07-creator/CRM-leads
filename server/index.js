@@ -3,7 +3,9 @@ const path = require('path');
 const express = require('express');
 const cors = require('cors');
 
-const leadsRouter = require('./routes/leads');
+const clientesRouter = require('./routes/clientes');
+const oportunidadesRouter = require('./routes/oportunidades');
+const tarefasRouter = require('./routes/tarefas');
 const etapasRouter = require('./routes/etapas');
 const tagsRouter = require('./routes/tags');
 
@@ -15,7 +17,9 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 
-app.use('/api/leads', leadsRouter);
+app.use('/api/clientes', clientesRouter);
+app.use('/api/oportunidades', oportunidadesRouter);
+app.use('/api/tarefas', tarefasRouter);
 app.use('/api/etapas', etapasRouter);
 app.use('/api/tags', tagsRouter);
 

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>BSB Fitas — CRM Leads</title>
+<title>BSB Fitas — CRM</title>
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -11,9 +11,10 @@
 <header class="topbar">
   <div class="topbar-brand">
     <img src="/logo.png" alt="BSB Fitas" class="topbar-logo" onerror="this.style.display='none'" />
-    <h1>CRM Leads</h1>
+    <h1>CRM</h1>
   </div>
   <div class="topbar-actions">
+    <button id="btn-tarefas" class="btn btn-ghost">Tarefas pendentes</button>
     <button id="btn-config" class="btn btn-ghost">Configurar etapas</button>
     <button id="btn-novo-lead" class="btn btn-primary">+ Novo lead</button>
   </div>
@@ -37,6 +38,7 @@
       <strong class="card-nome"></strong>
       <span class="card-atraso badge-atraso" hidden>atrasado</span>
     </div>
+    <div class="card-empresa"></div>
     <div class="card-produto"></div>
     <div class="card-tags"></div>
     <div class="card-footer">
@@ -46,39 +48,86 @@
   </article>
 </template>
 
-<!-- Modal: detalhe do lead -->
+<!-- Modal: detalhe da oportunidade -->
 <div id="modal-lead" class="modal-overlay" hidden>
   <div class="modal">
     <header class="modal-header">
-      <h2 id="lead-titulo">Lead</h2>
+      <h2 id="lead-titulo">Oportunidade</h2>
       <button class="modal-fechar" data-fechar="modal-lead">&times;</button>
     </header>
     <div class="modal-body">
-      <form id="form-lead" class="form-grid">
-        <label>Nome
-          <input type="text" id="lead-nome" required />
-        </label>
-        <label>Telefone
-          <input type="text" id="lead-telefone" placeholder="61999998888" required />
-        </label>
-        <label>Produto de interesse
-          <input type="text" id="lead-produto" />
-        </label>
-        <label>Etapa
-          <select id="lead-etapa"></select>
-        </label>
-        <label id="campo-motivo-perda" hidden>Motivo da perda
-          <input type="text" id="lead-motivo-perda" />
-        </label>
-        <div class="form-actions">
-          <button type="submit" class="btn btn-primary">Salvar</button>
-          <button type="button" id="btn-whatsapp-lead" class="btn btn-whatsapp-lg">Abrir WhatsApp</button>
-          <button type="button" id="btn-excluir-lead" class="btn btn-perigo">Excluir lead</button>
-        </div>
-      </form>
+
+      <section class="secao secao-topo">
+        <h3>Cliente <span id="lead-status-badge" class="status-badge"></span></h3>
+        <form id="form-cliente" class="form-grid">
+          <label>Nome
+            <input type="text" id="cliente-nome" required />
+          </label>
+          <label>Telefone
+            <input type="text" id="cliente-telefone" placeholder="61999998888" required />
+          </label>
+          <label>Tipo de pessoa
+            <select id="cliente-tipo-pessoa">
+              <option value="pf">Pessoa física</option>
+              <option value="pj">Pessoa jurídica</option>
+            </select>
+          </label>
+          <label>Empresa
+            <input type="text" id="cliente-empresa" />
+          </label>
+          <label>E-mail
+            <input type="email" id="cliente-email" />
+          </label>
+          <label>Instagram
+            <input type="text" id="cliente-instagram" placeholder="@usuario" />
+          </label>
+          <label>Origem
+            <input type="text" id="cliente-origem" placeholder="meta_ads, indicação..." />
+          </label>
+          <label>Observações
+            <input type="text" id="cliente-observacoes" />
+          </label>
+        </form>
+        <div class="resumo-compras" id="cliente-resumo-compras"></div>
+      </section>
 
       <section class="secao">
-        <h3>Tags</h3>
+        <h3>Oportunidade atual</h3>
+        <form id="form-oportunidade" class="form-grid">
+          <label>Etapa
+            <select id="lead-etapa"></select>
+          </label>
+          <label id="campo-motivo-perda" hidden>Motivo da perda
+            <input type="text" id="lead-motivo-perda" />
+          </label>
+          <label>Produto de interesse
+            <input type="text" id="lead-produto" />
+          </label>
+          <label>Quantidade
+            <input type="text" id="op-quantidade" placeholder="ex: 5 rolos" />
+          </label>
+          <label>Valor estimado (R$)
+            <input type="number" step="0.01" id="op-valor-estimado" />
+          </label>
+          <label>Valor do orçamento (R$)
+            <input type="number" step="0.01" id="op-valor-orcamento" />
+          </label>
+          <label>Próxima ação
+            <input type="text" id="op-proxima-acao" />
+          </label>
+          <label>Data do próximo follow-up
+            <input type="date" id="op-data-followup" />
+          </label>
+        </form>
+        <div class="form-actions">
+          <button type="button" id="btn-salvar-tudo" class="btn btn-primary">Salvar</button>
+          <button type="button" id="btn-whatsapp-lead" class="btn btn-whatsapp-lg">Abrir WhatsApp</button>
+          <button type="button" id="btn-excluir-lead" class="btn btn-perigo">Excluir oportunidade</button>
+        </div>
+      </section>
+
+      <section class="secao">
+        <h3>Tags do cliente</h3>
         <div id="lead-tags-lista" class="tags-lista"></div>
         <form id="form-tag" class="inline-form">
           <input type="text" id="input-nova-tag" placeholder="nova tag" />
@@ -87,13 +136,30 @@
       </section>
 
       <section class="secao">
-        <h3>Notas</h3>
+        <h3>Tarefas / follow-ups</h3>
+        <div id="lead-tarefas-lista" class="notas-lista"></div>
+        <form id="form-tarefa" class="inline-form">
+          <input type="text" id="input-nova-tarefa" placeholder="Descrição da tarefa" />
+          <input type="date" id="input-data-tarefa" />
+          <button type="submit" class="btn btn-ghost">Adicionar</button>
+        </form>
+      </section>
+
+      <section class="secao">
+        <h3>Notas desta oportunidade</h3>
         <div id="lead-notas-lista" class="notas-lista"></div>
         <form id="form-nota" class="inline-form">
           <input type="text" id="input-nova-nota" placeholder="Registrar interação, dúvida do cliente..." />
           <button type="submit" class="btn btn-ghost">Adicionar</button>
         </form>
       </section>
+
+      <section class="secao">
+        <h3>Histórico de oportunidades deste cliente</h3>
+        <div id="lead-historico-lista" class="notas-lista"></div>
+        <button type="button" id="btn-nova-oportunidade" class="btn btn-ghost">+ Nova oportunidade pra este cliente (recompra)</button>
+      </section>
+
     </div>
   </div>
 </div>
@@ -112,6 +178,18 @@
         </label>
         <label>Telefone
           <input type="text" id="novo-telefone" placeholder="61999998888" required />
+        </label>
+        <label>Tipo de pessoa
+          <select id="novo-tipo-pessoa">
+            <option value="pf">Pessoa física</option>
+            <option value="pj">Pessoa jurídica</option>
+          </select>
+        </label>
+        <label>Empresa
+          <input type="text" id="novo-empresa" />
+        </label>
+        <label>Origem
+          <input type="text" id="novo-origem" placeholder="meta_ads, indicação..." />
         </label>
         <label>Produto de interesse
           <input type="text" id="novo-produto" />
@@ -136,6 +214,19 @@
     </header>
     <div class="modal-body">
       <div id="config-etapas-lista" class="config-lista"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: tarefas pendentes -->
+<div id="modal-tarefas" class="modal-overlay" hidden>
+  <div class="modal modal-sm">
+    <header class="modal-header">
+      <h2>Tarefas pendentes</h2>
+      <button class="modal-fechar" data-fechar="modal-tarefas">&times;</button>
+    </header>
+    <div class="modal-body">
+      <div id="tarefas-pendentes-lista" class="notas-lista"></div>
     </div>
   </div>
 </div>
