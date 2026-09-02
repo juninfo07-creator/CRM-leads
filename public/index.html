@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BSB Fitas — CRM Leads</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-brand">
+    <img src="/logo.png" alt="BSB Fitas" class="topbar-logo" onerror="this.style.display='none'" />
+    <h1>CRM Leads</h1>
+  </div>
+  <div class="topbar-actions">
+    <button id="btn-config" class="btn btn-ghost">Configurar etapas</button>
+    <button id="btn-novo-lead" class="btn btn-primary">+ Novo lead</button>
+  </div>
+</header>
+
+<main id="board" class="board"></main>
+
+<template id="tpl-coluna">
+  <section class="coluna">
+    <header class="coluna-header">
+      <span class="coluna-titulo"></span>
+      <span class="coluna-contagem"></span>
+    </header>
+    <div class="coluna-cards"></div>
+  </section>
+</template>
+
+<template id="tpl-card">
+  <article class="card" draggable="true">
+    <div class="card-top">
+      <strong class="card-nome"></strong>
+      <span class="card-atraso badge-atraso" hidden>atrasado</span>
+    </div>
+    <div class="card-produto"></div>
+    <div class="card-tags"></div>
+    <div class="card-footer">
+      <span class="card-dias"></span>
+      <button class="btn-whatsapp" title="Abrir WhatsApp">WhatsApp</button>
+    </div>
+  </article>
+</template>
+
+<!-- Modal: detalhe do lead -->
+<div id="modal-lead" class="modal-overlay" hidden>
+  <div class="modal">
+    <header class="modal-header">
+      <h2 id="lead-titulo">Lead</h2>
+      <button class="modal-fechar" data-fechar="modal-lead">&times;</button>
+    </header>
+    <div class="modal-body">
+      <form id="form-lead" class="form-grid">
+        <label>Nome
+          <input type="text" id="lead-nome" required />
+        </label>
+        <label>Telefone
+          <input type="text" id="lead-telefone" placeholder="61999998888" required />
+        </label>
+        <label>Produto de interesse
+          <input type="text" id="lead-produto" />
+        </label>
+        <label>Etapa
+          <select id="lead-etapa"></select>
+        </label>
+        <label id="campo-motivo-perda" hidden>Motivo da perda
+          <input type="text" id="lead-motivo-perda" />
+        </label>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Salvar</button>
+          <button type="button" id="btn-whatsapp-lead" class="btn btn-whatsapp-lg">Abrir WhatsApp</button>
+          <button type="button" id="btn-excluir-lead" class="btn btn-perigo">Excluir lead</button>
+        </div>
+      </form>
+
+      <section class="secao">
+        <h3>Tags</h3>
+        <div id="lead-tags-lista" class="tags-lista"></div>
+        <form id="form-tag" class="inline-form">
+          <input type="text" id="input-nova-tag" placeholder="nova tag" />
+          <button type="submit" class="btn btn-ghost">Adicionar</button>
+        </form>
+      </section>
+
+      <section class="secao">
+        <h3>Notas</h3>
+        <div id="lead-notas-lista" class="notas-lista"></div>
+        <form id="form-nota" class="inline-form">
+          <input type="text" id="input-nova-nota" placeholder="Registrar interação, dúvida do cliente..." />
+          <button type="submit" class="btn btn-ghost">Adicionar</button>
+        </form>
+      </section>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: novo lead -->
+<div id="modal-novo-lead" class="modal-overlay" hidden>
+  <div class="modal modal-sm">
+    <header class="modal-header">
+      <h2>Novo lead</h2>
+      <button class="modal-fechar" data-fechar="modal-novo-lead">&times;</button>
+    </header>
+    <div class="modal-body">
+      <form id="form-novo-lead" class="form-grid">
+        <label>Nome
+          <input type="text" id="novo-nome" required />
+        </label>
+        <label>Telefone
+          <input type="text" id="novo-telefone" placeholder="61999998888" required />
+        </label>
+        <label>Produto de interesse
+          <input type="text" id="novo-produto" />
+        </label>
+        <label>Tags (separadas por vírgula)
+          <input type="text" id="novo-tags" placeholder="varejo, roupas" />
+        </label>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Criar lead</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: configurar etapas -->
+<div id="modal-config" class="modal-overlay" hidden>
+  <div class="modal">
+    <header class="modal-header">
+      <h2>Configurar etapas</h2>
+      <button class="modal-fechar" data-fechar="modal-config">&times;</button>
+    </header>
+    <div class="modal-body">
+      <div id="config-etapas-lista" class="config-lista"></div>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="app.js"></script>
+</body>
+</html>
